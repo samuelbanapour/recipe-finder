@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recipe Finder — What Can I Cook?</title>
+<style>
+  :root {
+    --bg: #faf6f1;
+    --card: #ffffff;
+    --accent: #e07a3a;
+    --accent-hover: #c96a2e;
+    --accent-light: #fdf0e6;
+    --text: #2d2013;
+    --text-secondary: #7a6a5a;
+    --border: #e8ddd2;
+    --tag-bg: #f3ece4;
+    --tag-active: #e07a3a;
+    --tag-active-text: #fff;
+    --match-high: #2d9d4e;
+    --match-mid: #d4a017;
+    --match-low: #c0392b;
+    --shadow: 0 2px 12px rgba(45,32,19,0.08);
+    --shadow-lg: 0 8px 30px rgba(45,32,19,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #e07a3a 0%, #d4622a 50%, #c0522a 100%);
+    color: white;
+    padding: 2.5rem 1.5rem 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px);
+    background-size: 30px 30px;
+    animation: drift 20s linear infinite;
+  }
+  @keyframes drift { to { transform: translate(30px, 30px); } }
+  .header h1 { font-size: 2.2rem; font-weight: 700; position: relative; margin-bottom: 0.3rem; }
+  .header p { opacity: 0.9; font-size: 1.05rem; position: relative; }
+
+  /* Container */
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 1.2rem; }
+
+  /* Ingredient Input Section */
+  .input-section {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.5rem;
+    margin-top: -1.5rem;
+    position: relative;
+    z-index: 2;
+  }
+  .input-section h2 {
+    font-size: 1.1rem;
+    margin-bottom: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+  .input-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .ingredient-input {
+    flex: 1;
+    padding: 0.7rem 1rem;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 1rem;
+    font-family: var(--font);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .ingredient-input:focus { border-color: var(--accent); }
+  .ingredient-input::placeholder { color: #bbb; }
+
+  .btn {
+    padding: 0.7rem 1.3rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: var(--font);
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+  .btn-secondary { background: var(--tag-bg); color: var(--text); }
+  .btn-secondary:hover { background: var(--border); }
+  .btn-ghost { background: transparent; color: var(--accent); border: 2px solid var(--accent); }
+  .btn-ghost:hover { background: var(--accent); color: white; }
+  .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+  .btn-icon {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0; font-size: 1.1rem; background: var(--tag-bg);
+    border: none; cursor: pointer; color: var(--text-secondary);
+    transition: all 0.2s;
+  }
+  .btn-icon:hover { background: var(--accent); color: white; }
+
+  /* Autocomplete */
+  .autocomplete-wrapper { position: relative; flex: 1; }
+  .autocomplete-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+  }
+  .autocomplete-list.show { display: block; }
+  .autocomplete-item {
+    padding: 0.55rem 1rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background 0.15s;
+  }
+  .autocomplete-item:hover, .autocomplete-item.active { background: var(--accent-light); }
+  .autocomplete-item .cat-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-left: auto;
+    background: var(--tag-bg);
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+  }
+
+  /* Selected Ingredients Tags */
+  .selected-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; min-height: 2rem; }
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.35rem 0.7rem;
+    background: var(--accent-light);
+    color: var(--accent);
+    border-radius: 20px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: default;
+    animation: popIn 0.2s ease;
+  }
+  @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .tag button {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+  }
+  .tag button:hover { opacity: 1; }
+
+  /* Category Quick-Add */
+  .category-section { margin-top: 1rem; }
+  .category-section summary {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-weight: 600;
+    user-select: none;
+    padding: 0.3rem 0;
+  }
+  .category-section summary:hover { color: var(--accent); }
+  .category-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+  }
+  .category-grid .quick-btn {
+    padding: 0.3rem 0.65rem;
+    background: var(--tag-bg);
+    border: 1.5px solid transparent;
+    border-radius: 16px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font);
+    color: var(--text);
+  }
+  .category-grid .quick-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .category-grid .quick-btn.selected { background: var(--accent); color: white; border-color: var(--accent); }
+
+  /* What Can I Make button */
+  .action-bar {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .match-count {
+    margin-left: auto;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  /* Filters */
+  .filters-bar {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1rem 1.5rem;
+    margin-top: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+  }
+  .filter-group { display: flex; flex-direction: column; gap: 0.3rem; }
+  .filter-group label { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); }
+  .filter-group select {
+    padding: 0.45rem 0.7rem;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-family: var(--font);
+    background: var(--card);
+    color: var(--text);
+    outline: none;
+    cursor: pointer;
+  }
+  .filter-group select:focus { border-color: var(--accent); }
+  .dietary-filters { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  .dietary-btn {
+    padding: 0.35rem 0.7rem;
+    border: 2px solid var(--border);
+    border-radius: 20px;
+    background: var(--card);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: var(--font);
+    color: var(--text-secondary);
+  }
+  .dietary-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .dietary-btn.active { background: var(--tag-active); color: var(--tag-active-text); border-color: var(--tag-active); }
+
+  /* Recipe Grid */
+  .recipes-header {
+    margin-top: 1.5rem;
+    margin-bottom: 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .recipes-header h2 { font-size: 1.2rem; font-weight: 700; }
+
+  .recipe-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
+    padding-bottom: 3rem;
+  }
+
+  /* Recipe Card */
+  .recipe-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    transition: all 0.3s;
+    cursor: pointer;
+    border: 2px solid transparent;
+  }
+  .recipe-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+  .recipe-card.highlight { border-color: var(--match-high); }
+  .recipe-card.no-match { opacity: 0.55; }
+  .recipe-card.highlight .card-badge { display: flex; }
+
+  .card-badge {
+    display: none;
+    position: absolute;
+    top: 0.8rem;
+    right: 0.8rem;
+    background: var(--match-high);
+    color: white;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    z-index: 2;
+  }
+
+  .card-top {
+    position: relative;
+    padding: 1.2rem 1.2rem 0.8rem;
+  }
+  .card-emoji {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+  .card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+  .card-meta {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+  .meta-chip .icon { font-size: 0.9rem; }
+
+  .card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    padding: 0 1.2rem;
+    margin-bottom: 0.6rem;
+  }
+  .card-diet-tag {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .tag-vegan { background: #e8f5e9; color: #2e7d32; }
+  .tag-vegetarian { background: #f1f8e9; color: #558b2f; }
+  .tag-gluten-free { background: #fff3e0; color: #e65100; }
+  .tag-dairy-free { background: #e3f2fd; color: #1565c0; }
+  .tag-low-carb { background: #fce4ec; color: #c62828; }
+
+  .card-match {
+    padding: 0.6rem 1.2rem;
+    border-top: 1px solid var(--border);
+  }
+  .match-bar-outer {
+    height: 6px;
+    background: var(--tag-bg);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 0.3rem;
+  }
+  .match-bar-inner {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+  .match-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+  .match-label strong { color: var(--text); }
+
+  /* Expanded Recipe */
+  .recipe-detail {
+    display: none;
+    padding: 0 1.2rem 1.2rem;
+    border-top: 1px solid var(--border);
+    margin-top: 0.4rem;
+    animation: slideDown 0.3s ease;
+  }
+  .recipe-detail.open { display: block; }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .detail-section { margin-top: 1rem; }
+  .detail-section h3 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+  }
+  .ingredient-list { list-style: none; }
+  .ingredient-list li {
+    padding: 0.3rem 0;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .ingredient-list li .check { font-size: 0.8rem; }
+  .ingredient-list li.has-ingredient .check { color: var(--match-high); }
+  .ingredient-list li.missing .check { color: var(--match-low); }
+  .ingredient-list li.missing { color: var(--text-secondary); }
+
+  .steps-list { list-style: none; counter-reset: step; }
+  .steps-list li {
+    counter-increment: step;
+    padding: 0.5rem 0;
+    font-size: 0.9rem;
+    display: flex;
+    gap: 0.7rem;
+    align-items: flex-start;
+  }
+  .steps-list li::before {
+    content: counter(step);
+    min-width: 24px;
+    height: 24px;
+    background: var(--accent-light);
+    color: var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+  }
+
+  .card-expand-hint {
+    text-align: center;
+    padding: 0.5rem;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border);
+    transition: background 0.2s;
+  }
+  .recipe-card:hover .card-expand-hint { background: var(--accent-light); color: var(--accent); }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-secondary);
+  }
+  .empty-state .emoji { font-size: 3rem; margin-bottom: 1rem; display: block; }
+  .empty-state h3 { font-size: 1.2rem; color: var(--text); margin-bottom: 0.4rem; }
+
+  /* Responsive */
+  @media (max-width: 700px) {
+    .header h1 { font-size: 1.7rem; }
+    .recipe-grid { grid-template-columns: 1fr; }
+    .filters-bar { flex-direction: column; align-items: stretch; }
+    .action-bar { flex-direction: column; align-items: stretch; }
+    .match-count { margin-left: 0; text-align: center; }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>&#127869; Recipe Finder</h1>
+  <p>Tell me what you have, I'll tell you what you can cook!</p>
+</div>
+
+<div class="container">
+  <div class="input-section">
+    <h2>&#128269; Add your ingredients</h2>
+    <div class="input-row">
+      <div class="autocomplete-wrapper">
+        <input type="text" class="ingredient-input" id="ingredientInput" placeholder="Type an ingredient (e.g. chicken, rice, garlic...)" autocomplete="off">
+        <div class="autocomplete-list" id="autocompleteList"></div>
+      </div>
+      <button class="btn btn-primary" onclick="addIngredient()">Add</button>
+    </div>
+    <div class="selected-tags" id="selectedTags"></div>
+
+    <details class="category-section">
+      <summary>&#127859; Browse ingredients by category</summary>
+      <div id="categoryBrowser"></div>
+    </details>
+
+    <div class="action-bar">
+      <button class="btn btn-ghost" onclick="showWhatICanMake()">&#9889; What Can I Make Now?</button>
+      <button class="btn btn-secondary btn-sm" onclick="clearAll()">Clear All</button>
+      <span class="match-count" id="matchCount"></span>
+    </div>
+  </div>
+
+  <div class="filters-bar">
+    <div class="filter-group">
+      <label>Sort By</label>
+      <select id="sortBy" onchange="renderRecipes()">
+        <option value="match">Best Match</option>
+        <option value="time">Cook Time</option>
+        <option value="name">Name A–Z</option>
+        <option value="difficulty">Difficulty</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Meal Type</label>
+      <select id="mealFilter" onchange="renderRecipes()">
+        <option value="all">All Meals</option>
+        <option value="breakfast">Breakfast</option>
+        <option value="lunch">Lunch</option>
+        <option value="dinner">Dinner</option>
+        <option value="snack">Snack</option>
+        <option value="dessert">Dessert</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Difficulty</label>
+      <select id="diffFilter" onchange="renderRecipes()">
+        <option value="all">All Levels</option>
+        <option value="Easy">Easy</option>
+        <option value="Medium">Medium</option>
+        <option value="Hard">Hard</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Dietary</label>
+      <div class="dietary-filters" id="dietaryFilters">
+        <button class="dietary-btn" data-diet="vegetarian" onclick="toggleDiet(this)">Vegetarian</button>
+        <button class="dietary-btn" data-diet="vegan" onclick="toggleDiet(this)">Vegan</button>
+        <button class="dietary-btn" data-diet="gluten-free" onclick="toggleDiet(this)">Gluten-Free</button>
+        <button class="dietary-btn" data-diet="dairy-free" onclick="toggleDiet(this)">Dairy-Free</button>
+        <button class="dietary-btn" data-diet="low-carb" onclick="toggleDiet(this)">Low-Carb</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="recipes-header">
+    <h2 id="recipesTitle">All Recipes</h2>
+  </div>
+  <div class="recipe-grid" id="recipeGrid"></div>
+</div>
+
+<script>
+// ============ INGREDIENT CATEGORIES ============
+const INGREDIENT_CATEGORIES = {
+  "Proteins": ["chicken breast","ground beef","salmon","shrimp","tofu","eggs","bacon","sausage","turkey","tuna","pork chops","steak","lamb","cod","tofu","tempeh","beans","lentils"],
+  "Vegetables": ["onion","garlic","tomato","potato","carrot","broccoli","spinach","bell pepper","mushroom","zucchini","corn","peas","celery","cucumber","lettuce","kale","sweet potato","cauliflower","green beans","asparagus","eggplant","jalapeño","avocado"],
+  "Grains & Pasta": ["rice","pasta","bread","flour","tortilla","noodles","quinoa","oats","couscous","bread crumbs","panko","cereal","bagel","pita"],
+  "Dairy & Eggs": ["milk","cheese","butter","cream","yogurt","sour cream","parmesan","mozzarella","cream cheese","whipping cream","cheddar","feta","cottage cheese"],
+  "Canned & Jarred": ["canned tomatoes","tomato sauce","tomato paste","coconut milk","chicken broth","vegetable broth","soy sauce","hot sauce","salsa","olives","capers","jam","peanut butter","nutella"],
+  "Herbs & Spices": ["salt","pepper","cumin","paprika","oregano","basil","thyme","cinnamon","chili powder","garlic powder","onion powder","ginger","turmeric","bay leaf","rosemary","cilantro","parsley","dill","coriander"],
+  "Oils & Vinegars": ["olive oil","vegetable oil","sesame oil","butter","coconut oil","balsamic vinegar","apple cider vinegar","white vinegar","lemon juice","lime juice"],
+  "Baking": ["sugar","brown sugar","honey","maple syrup","baking powder","baking soda","vanilla extract","chocolate chips","cocoa powder","cornstarch"],
+  "Other": ["pineapple","mango","banana","berries","lemon","lime","raisins","nuts","almonds","coconut flakes","seaweed","tortilla chips","potato chips","hummus"]
+};
+
+// ============ RECIPE DATABASE ============
+const RECIPES = [
+  {
+    name: "Chicken Stir-Fry", emoji: "🥘",
+    time: 20, difficulty: "Easy", meal: "dinner",
+    diet: ["dairy-free"],
+    ingredients: ["chicken breast","bell pepper","onion","garlic","soy sauce","ginger","vegetable oil","rice"],
+    steps: ["Slice chicken into thin strips and season with salt and pepper.","Dice bell pepper and onion. Mince garlic and ginger.","Heat oil in a wok or large pan over high heat.","Cook chicken for 4-5 minutes until golden. Remove and set aside.","Stir-fry vegetables for 3 minutes until crisp-tender.","Add garlic and ginger, cook 30 seconds.","Return chicken, add soy sauce. Toss everything together.","Serve hot over steamed rice."]
+  },
+  {
+    name: "Classic Spaghetti Bolognese", emoji: "🍝",
+    time: 40, difficulty: "Easy", meal: "dinner",
+    diet: [],
+    ingredients: ["ground beef","onion","garlic","canned tomatoes","tomato paste","pasta","olive oil","oregano","basil","salt","pepper"],
+    steps: ["Cook pasta according to package directions. Drain and set aside.","Heat olive oil in a large pan over medium-high heat.","Add diced onion and cook 3 minutes until soft.","Add minced garlic, cook 30 seconds.","Add ground beef, break up with a spoon, cook until browned.","Stir in canned tomatoes and tomato paste.","Add oregano, basil, salt and pepper. Simmer 20 minutes.","Serve sauce over pasta."]
+  },
+  {
+    name: "Avocado Toast", emoji: "🥑",
+    time: 5, difficulty: "Easy", meal: "breakfast",
+    diet: ["vegan","dairy-free"],
+    ingredients: ["bread","avocado","lemon juice","salt","pepper","olive oil"],
+    steps: ["Toast bread until golden and crispy.","Cut avocado in half, remove pit, scoop flesh into a bowl.","Mash with a fork to desired consistency.","Add lemon juice, salt and pepper. Mix well.","Spread generously on toast.","Drizzle with olive oil and serve immediately."]
+  },
+  {
+    name: "Scrambled Eggs", emoji: "🍳",
+    time: 8, difficulty: "Easy", meal: "breakfast",
+    diet: ["vegetarian","gluten-free","low-carb"],
+    ingredients: ["eggs","butter","salt","pepper","milk"],
+    steps: ["Crack eggs into a bowl, add a splash of milk. Beat well.","Melt butter in a non-stick pan over medium-low heat.","Pour in eggs and gently stir with a spatula.","Cook slowly, folding eggs over themselves.","Remove from heat while still slightly moist — they'll finish cooking on the plate.","Season with salt and pepper. Serve immediately."]
+  },
+  {
+    name: "Garlic Butter Salmon", emoji: "🐟",
+    time: 15, difficulty: "Easy", meal: "dinner",
+    diet: ["gluten-free","low-carb"],
+    ingredients: ["salmon","butter","garlic","lemon juice","parsley","salt","pepper"],
+    steps: ["Pat salmon fillets dry and season with salt and pepper.","Melt butter in a pan over medium-high heat.","Add minced garlic, cook 30 seconds until fragrant.","Place salmon skin-side up, cook 4 minutes.","Flip carefully, cook another 3-4 minutes.","Squeeze lemon juice over the top.","Garnish with fresh parsley and serve."]
+  },
+  {
+    name: "Vegetable Fried Rice", emoji: "🍚",
+    time: 15, difficulty: "Easy", meal: "dinner",
+    diet: ["vegan","dairy-free"],
+    ingredients: ["rice","eggs","carrot","peas","onion","garlic","soy sauce","sesame oil","vegetable oil"],
+    steps: ["Use day-old cooked rice for best results (or cook and cool rice).","Dice carrot and onion. Mince garlic.","Heat vegetable oil in a wok over high heat.","Scramble eggs, break into small pieces. Set aside.","Add more oil, stir-fry carrot and peas for 2 minutes.","Add onion and garlic, cook 1 minute.","Add rice, stir-fry 3-4 minutes until hot.","Add soy sauce and sesame oil. Toss in eggs. Serve."]
+  },
+  {
+    name: "Greek Salad", emoji: "🥗",
+    time: 10, difficulty: "Easy", meal: "lunch",
+    diet: ["vegetarian","gluten-free","low-carb"],
+    ingredients: ["cucumber","tomato","onion","feta","olives","olive oil","oregano","salt","pepper"],
+    steps: ["Chop cucumber, tomatoes, and onion into chunks.","Place in a large bowl.","Add olives and crumbled feta on top.","Drizzle with olive oil.","Sprinkle with dried oregano, salt and pepper.","Toss gently and serve."]
+  },
+  {
+    name: "Chicken Tacos", emoji: "🌮",
+    time: 25, difficulty: "Easy", meal: "dinner",
+    diet: ["dairy-free"],
+    ingredients: ["chicken breast","tortilla","onion","garlic","cumin","chili powder","lime juice","cilantro","tomato"],
+    steps: ["Season chicken with cumin, chili powder, salt and pepper.","Cook chicken in a pan over medium-high heat, 5-6 minutes per side.","Let rest, then slice or shred.","Dice onion, tomato. Chop cilantro.","Warm tortillas in a dry pan.","Fill tortillas with chicken, top with onion, tomato, cilantro.","Squeeze lime juice over the top. Serve."]
+  },
+  {
+    name: "Oatmeal with Berries", emoji: "🥣",
+    time: 8, difficulty: "Easy", meal: "breakfast",
+    diet: ["vegetarian"],
+    ingredients: ["oats","milk","berries","honey","cinnamon"],
+    steps: ["Bring milk to a boil in a small pot.","Add oats, reduce heat to low.","Cook 5 minutes, stirring occasionally.","Remove from heat, let stand 1 minute.","Top with berries, a drizzle of honey, and a pinch of cinnamon.","Serve warm."]
+  },
+  {
+    name: "Tomato Basil Soup", emoji: "🍅",
+    time: 30, difficulty: "Easy", meal: "lunch",
+    diet: ["vegan","dairy-free","gluten-free"],
+    ingredients: ["tomato","onion","garlic","vegetable broth","basil","olive oil","salt","pepper"],
+    steps: ["Dice onion, mince garlic.","Heat olive oil in a pot over medium heat.","Cook onion 5 minutes until soft.","Add garlic, cook 1 minute.","Add chopped tomatoes and vegetable broth.","Bring to a boil, then simmer 15 minutes.","Add basil, blend until smooth (use immersion blender).","Season with salt and pepper. Serve hot."]
+  },
+  {
+    name: "Mushroom Risotto", emoji: "🍄",
+    time: 35, difficulty: "Medium", meal: "dinner",
+    diet: ["vegetarian","gluten-free"],
+    ingredients: ["rice","mushroom","onion","garlic","butter","parmesan","chicken broth","white vinegar","olive oil","thyme"],
+    steps: ["Warm chicken broth in a separate pot, keep on low heat.","Heat olive oil and butter in a heavy pan.","Cook diced onion for 3 minutes.","Add sliced mushrooms, cook 5 minutes until golden.","Add rice, stir 1-2 minutes until translucent at edges.","Add a ladle of warm broth, stir until absorbed.","Repeat adding broth and stirring for 18-20 minutes.","Stir in parmesan and thyme. Season and serve."]
+  },
+  {
+    name: "Shrimp Tacos", emoji: "🍤",
+    time: 20, difficulty: "Easy", meal: "dinner",
+    diet: ["dairy-free"],
+    ingredients: ["shrimp","tortilla","cabbage","lime juice","garlic","cumin","cilantro","avocado","hot sauce"],
+    steps: ["Peel and devein shrimp if needed.","Season with cumin, garlic powder, salt and pepper.","Cook in a hot pan 2 minutes per side until pink.","Shred cabbage finely.","Make a quick slaw with cabbage, lime juice, and a pinch of salt.","Warm tortillas.","Fill with shrimp, top with cabbage slaw.","Add sliced avocado and hot sauce."]
+  },
+  {
+    name: "Banana Pancakes", emoji: "🥞",
+    time: 15, difficulty: "Easy", meal: "breakfast",
+    diet: ["vegetarian"],
+    ingredients: ["banana","eggs","flour","milk","butter","sugar","baking powder","vanilla extract"],
+    steps: ["Mash banana in a bowl.","Beat in eggs, milk, melted butter, and vanilla.","Mix in flour, sugar, and baking powder until just combined.","Heat a buttered pan over medium heat.","Pour 1/4 cup batter per pancake.","Cook until bubbles form on top, flip and cook 1-2 more minutes.","Serve with maple syrup and sliced banana."]
+  },
+  {
+    name: "Grilled Cheese & Tomato Soup", emoji: "🧀",
+    time: 20, difficulty: "Easy", meal: "lunch",
+    diet: ["vegetarian"],
+    ingredients: ["bread","cheese","butter","tomato","onion","garlic","vegetable broth","basil"],
+    steps: ["Butter one side of each bread slice.","Place cheese between bread, butter-side out.","Cook in a pan over medium heat, 3 minutes per side until golden.","For soup: sauté onion and garlic in butter.","Add chopped tomato and vegetable broth.","Simmer 15 minutes, blend until smooth.","Add basil, season to taste.","Serve soup with grilled cheese for dipping."]
+  },
+  {
+    name: "Pad Thai", emoji: "🍜",
+    time: 30, difficulty: "Medium", meal: "dinner",
+    diet: ["dairy-free"],
+    ingredients: ["noodles","shrimp","eggs","bean sprouts","onion","garlic","soy sauce","peanuts","lime juice","sugar","vegetable oil"],
+    steps: ["Soak rice noodles in warm water 20 minutes, drain.","Mix sauce: soy sauce, sugar, lime juice.","Heat oil in wok over high heat.","Cook shrimp 2 minutes per side. Remove.","Scramble eggs in the wok. Set aside.","Stir-fry onion and garlic 1 minute.","Add noodles and sauce, toss 2-3 minutes.","Return shrimp and eggs, add bean sprouts and peanuts. Toss and serve."]
+  },
+  {
+    name: "Caesar Salad", emoji: "🥬",
+    time: 10, difficulty: "Easy", meal: "lunch",
+    diet: ["low-carb"],
+    ingredients: ["lettuce","parmesan","bread","garlic","olive oil","lemon juice","anchovies","eggs","dijon mustard"],
+    steps: ["Make croutons: cube bread, toss with olive oil and garlic, toast in oven at 375°F for 8 minutes.","For dressing: blend egg, garlic, anchovies, lemon juice, dijon, and parmesan.","Slowly drizzle in olive oil while blending.","Tear lettuce into a bowl.","Toss with dressing and top with croutons and extra parmesan."]
+  },
+  {
+    name: "Beef Chili", emoji: "🌶️",
+    time: 45, difficulty: "Easy", meal: "dinner",
+    diet: ["gluten-free","dairy-free"],
+    ingredients: ["ground beef","onion","garlic","canned tomatoes","chili powder","cumin","bell pepper","beans","salt","pepper"],
+    steps: ["Cook ground beef in a large pot over medium-high heat until browned.","Add diced onion and bell pepper, cook 4 minutes.","Add garlic and jalapeño if using, cook 1 minute.","Add chili powder and cumin, stir 30 seconds.","Add canned tomatoes and beans.","Bring to a boil, reduce heat, simmer 30 minutes.","Season with salt and pepper.","Serve with desired toppings."]
+  },
+  {
+    name: "Caprese Salad", emoji: "🍅",
+    time: 5, difficulty: "Easy", meal: "snack",
+    diet: ["vegetarian","gluten-free","low-carb"],
+    ingredients: ["tomato","mozzarella","basil","olive oil","salt","pepper"],
+    steps: ["Slice tomatoes and mozzarella into equal-thickness rounds.","Arrange alternating slices on a plate.","Tuck fresh basil leaves between slices.","Drizzle generously with olive oil.","Season with salt and pepper.","Serve immediately."]
+  },
+  {
+    name: "Chicken Curry", emoji: "🍛",
+    time: 35, difficulty: "Medium", meal: "dinner",
+    diet: ["gluten-free","dairy-free"],
+    ingredients: ["chicken breast","onion","garlic","ginger","coconut milk","curry powder","tomato","vegetable oil","rice","cilantro"],
+    steps: ["Cut chicken into bite-sized pieces.","Heat oil in a pan, cook chicken until sealed. Remove.","In the same pan, cook diced onion 5 minutes.","Add garlic and ginger, cook 1 minute.","Add curry powder, stir 30 seconds.","Add chopped tomato, cook 3 minutes.","Pour in coconut milk, bring to a simmer.","Return chicken, cook 15 minutes until tender.","Garnish with cilantro. Serve over rice."]
+  },
+  {
+    name: "Bruschetta", emoji: "🥖",
+    time: 15, difficulty: "Easy", meal: "snack",
+    diet: ["vegan","dairy-free"],
+    ingredients: ["bread","tomato","garlic","basil","olive oil","balsamic vinegar","salt","pepper"],
+    steps: ["Dice tomatoes and place in a bowl.","Add chopped basil, minced garlic.","Drizzle with olive oil and balsamic vinegar.","Season with salt and pepper. Mix and let sit 10 minutes.","Slice bread, brush with olive oil, grill or toast.","Rub toasted bread with a cut garlic clove.","Spoon tomato mixture over bread and serve."]
+  },
+  {
+    name: "Sweet Potato Fries", emoji: "🍟",
+    time: 25, difficulty: "Easy", meal: "snack",
+    diet: ["vegan","gluten-free","dairy-free"],
+    ingredients: ["sweet potato","olive oil","salt","pepper","paprika"],
+    steps: ["Preheat oven to 425°F (220°C).","Peel and cut sweet potatoes into fry shapes.","Toss with olive oil, salt, pepper, and paprika.","Spread in a single layer on a baking sheet.","Bake 20-25 minutes, flipping halfway, until crispy.","Let cool 2 minutes before serving."]
+  },
+  {
+    name: "Lentil Soup", emoji: "🍲",
+    time: 35, difficulty: "Easy", meal: "dinner",
+    diet: ["vegan","gluten-free","dairy-free"],
+    ingredients: ["lentils","onion","carrot","celery","garlic","vegetable broth","tomato","cumin","olive oil","bay leaf","salt","pepper"],
+    steps: ["Rinse lentils well.","Heat olive oil in a pot, cook diced onion, carrot, and celery for 5 minutes.","Add garlic and cumin, cook 1 minute.","Add lentils, vegetable broth, chopped tomato, and bay leaf.","Bring to a boil, reduce heat, simmer 25 minutes until lentils are tender.","Remove bay leaf, season with salt and pepper.","Serve warm — great with crusty bread."]
+  },
+  {
+    name: "Mango Salsa", emoji: "🥭",
+    time: 10, difficulty: "Easy", meal: "snack",
+    diet: ["vegan","gluten-free","dairy-free","low-carb"],
+    ingredients: ["mango","onion","cilantro","lime juice","jalapeño","salt"],
+    steps: ["Dice mango into small cubes.","Finely dice onion and jalapeño.","Chop cilantro leaves.","Combine all in a bowl.","Add lime juice and salt.","Toss gently and serve with tortilla chips or over fish."]
+  },
+  {
+    name: "Egg Fried Noodles", emoji: "🍜",
+    time: 15, difficulty: "Easy", meal: "dinner",
+    diet: ["dairy-free"],
+    ingredients: ["noodles","eggs","soy sauce","sesame oil","garlic","green beans","vegetable oil"],
+    steps: ["Cook noodles according to package, drain.","Heat vegetable oil in a wok over high heat.","Scramble eggs, break into pieces. Set aside.","Add more oil, stir-fry green beans 3 minutes.","Add minced garlic, cook 30 seconds.","Add noodles and soy sauce, toss 2 minutes.","Add eggs and sesame oil, toss to combine."]
+  },
+  {
+    name: "Quinoa Bowl", emoji: "🥗",
+    time: 20, difficulty: "Easy", meal: "lunch",
+    diet: ["vegan","gluten-free","dairy-free"],
+    ingredients: ["quinoa","avocado","sweet potato","spinach","chickpeas","lemon juice","olive oil","salt","pepper","cumin"],
+    steps: ["Cook quinoa according to package directions.","Roast diced sweet potato with olive oil at 400°F for 15 minutes.","Drain and rinse chickpeas.","Wash spinach.","Assemble bowls: quinoa base, topped with sweet potato, chickpeas, spinach, and sliced avocado.","Drizzle with lemon juice and olive oil.","Season with cumin, salt, and pepper."]
+  },
+  {
+    name: "Chocolate Brownies", emoji: "🍫",
+    time: 35, difficulty: "Medium", meal: "dessert",
+    diet: ["vegetarian"],
+    ingredients: ["butter","sugar","eggs","flour","cocoa powder","vanilla extract","salt","chocolate chips"],
+    steps: ["Preheat oven to 350°F. Line an 8x8 pan with parchment.","Melt butter, stir in sugar until smooth.","Beat in eggs one at a time, add vanilla.","Fold in flour, cocoa powder, and salt until just combined.","Stir in chocolate chips.","Pour into prepared pan.","Bake 25-30 minutes until a toothpick comes out with moist crumbs.","Cool completely before cutting into squares."]
+  },
+  {
+    name: "Pancakes", emoji: "🥞",
+    time: 15, difficulty: "Easy", meal: "breakfast",
+    diet: ["vegetarian"],
+    ingredients: ["flour","milk","eggs","butter","sugar","baking powder","vanilla extract","salt"],
+    steps: ["Whisk flour, sugar, baking powder, and salt in a bowl.","In another bowl, mix milk, eggs, melted butter, and vanilla.","Pour wet into dry, stir until just combined (lumps are okay).","Heat a buttered pan or griddle over medium heat.","Pour 1/4 cup batter per pancake.","Cook until bubbles form and edges set, flip and cook 1-2 minutes.","Serve with butter and maple syrup."]
+  },
+  {
+    name: "Overnight Oats", emoji: "🌙",
+    time: 5, difficulty: "Easy", meal: "breakfast",
+    diet: ["vegetarian"],
+    ingredients: ["oats","milk","yogurt","honey","banana","berries","chia seeds"],
+    steps: ["Combine oats, milk, yogurt, and honey in a jar.","Stir well, add chia seeds if using.","Cover and refrigerate overnight (or at least 4 hours).","In the morning, stir and top with sliced banana and berries.","Can be eaten cold or warmed up."]
+  },
+  {
+    name: "Hummus & Veggies", emoji: "🥕",
+    time: 5, difficulty: "Easy", meal: "snack",
+    diet: ["vegan","gluten-free","dairy-free"],
+    ingredients: ["hummus","carrot","cucumber","bell pepper","celery"],
+    steps: ["Slice carrots, cucumber, bell pepper, and celery into sticks.","Arrange on a plate around a bowl of hummus.","Dip and enjoy!","Pro tip: squeeze lemon juice on veggies for extra freshness."]
+  },
+  {
+    name: "Tuna Salad Sandwich", emoji: "🥪",
+    time: 10, difficulty: "Easy", meal: "lunch",
+    diet: [],
+    ingredients: ["tuna","bread","celery","onion","mayonnaise","lemon juice","salt","pepper","lettuce"],
+    steps: ["Drain canned tuna and place in a bowl.","Add finely diced celery and onion.","Mix in mayonnaise and lemon juice.","Season with salt and pepper.","Toast bread if desired.","Layer lettuce and tuna salad between slices.","Cut in half and serve."]
+  },
+  {
+    name: "Chicken Caesar Wrap", emoji: "🌯",
+    time: 15, difficulty: "Easy", meal: "lunch",
+    diet: [],
+    ingredients: ["chicken breast","tortilla","lettuce","parmesan","lemon juice","garlic","olive oil","bread"],
+    steps: ["Season and cook chicken breast until done. Let rest, then slice.","Make quick dressing: mix olive oil, lemon juice, minced garlic, and parmesan.","Warm tortilla slightly.","Layer lettuce, sliced chicken, and parmesan on tortilla.","Drizzle with dressing.","Roll up tightly, cut in half."]
+  },
+  {
+    name: "Vegetable Pasta Primavera", emoji: "🥦",
+    time: 25, difficulty: "Easy", meal: "dinner",
+    diet: ["vegetarian"],
+    ingredients: ["pasta","zucchini","bell pepper","broccoli","garlic","olive oil","parmesan","basil","salt","pepper"],
+    steps: ["Cook pasta according to package. Reserve 1/2 cup pasta water.","Chop all vegetables into bite-sized pieces.","Heat olive oil in a large pan over medium-high heat.","Add broccoli and bell pepper, cook 4 minutes.","Add zucchini and garlic, cook 3 minutes.","Toss in drained pasta and a splash of pasta water.","Add parmesan and basil, toss well.","Season and serve."]
+  },
+  {
+    name: "Steak with Garlic Butter", emoji: "🥩",
+    time: 20, difficulty: "Medium", meal: "dinner",
+    diet: ["gluten-free","low-carb"],
+    ingredients: ["steak","butter","garlic","rosemary","salt","pepper","olive oil"],
+    steps: ["Take steak out of fridge 30 minutes before cooking.","Pat dry and season generously with salt and pepper.","Heat olive oil in a cast-iron skillet until smoking hot.","Sear steak 4 minutes per side for medium-rare.","Reduce heat, add butter, garlic, and rosemary.","Baste steak with melted butter for 1 minute.","Rest 5 minutes before slicing against the grain."]
+  },
+  {
+    name: "Cinnamon Toast", emoji: "🍞",
+    time: 5, difficulty: "Easy", meal: "snack",
+    diet: ["vegetarian"],
+    ingredients: ["bread","butter","cinnamon","sugar","vanilla extract"],
+    steps: ["Toast bread until golden.","Mix softened butter with cinnamon, sugar, and a drop of vanilla.","Spread generously on warm toast.","Sprinkle with extra cinnamon-sugar if desired.","Enjoy while warm and crispy!"]
+  },
+  {
+    name: "Butter Chicken", emoji: "🍛",
+    time: 45, difficulty: "Medium", meal: "dinner",
+    diet: ["gluten-free"],
+    ingredients: ["chicken breast","yogurt","butter","onion","garlic","ginger","tomato","cream","cumin","paprika","turmeric","salt","rice"],
+    steps: ["Marinate chicken in yogurt, paprika, turmeric, and salt for 20 minutes.","Cook marinated chicken in a hot pan until charred. Set aside.","In the same pan, melt butter and cook diced onion 5 minutes.","Add garlic and ginger, cook 1 minute.","Add tomato, cook 5 minutes until broken down.","Blend sauce until smooth, return to pan.","Add cream and simmer 5 minutes.","Slice chicken into the sauce, simmer 5 more minutes.","Serve over basmati rice."]
+  },
+  {
+    name: "Zucchini Fritters", emoji: "🥒",
+    time: 20, difficulty: "Medium", meal: "snack",
+    diet: ["vegetarian"],
+    ingredients: ["zucchini","eggs","flour","onion","garlic","parmesan","olive oil","salt","pepper"],
+    steps: ["Grate zucchini, sprinkle with salt, let sit 10 minutes, then squeeze out excess water.","Grate onion, mince garlic.","Mix zucchini, onion, garlic, eggs, flour, and parmesan.","Season with salt and pepper.","Heat olive oil in a pan over medium heat.","Drop spoonfuls of batter, flatten slightly.","Cook 3 minutes per side until golden.","Serve with sour cream or yogurt."]
+  },
+  {
+    name: "Peanut Butter Cookies", emoji: "🍪",
+    time: 25, difficulty: "Easy", meal: "dessert",
+    diet: ["vegetarian"],
+    ingredients: ["peanut butter","sugar","eggs","vanilla extract","baking soda","salt"],
+    steps: ["Preheat oven to 350°F. Line a baking sheet.","Mix peanut butter, sugar, eggs, vanilla, baking soda, and salt until smooth.","Scoop tablespoon-sized balls onto the sheet.","Press a criss-cross pattern with a fork.","Bake 10-12 minutes until edges are golden.","Cool on the pan 5 minutes, then transfer to a rack."]
+  },
+  {
+    name: "Coconut Curry Shrimp", emoji: "🦐",
+    time: 20, difficulty: "Easy", meal: "dinner",
+    diet: ["gluten-free","dairy-free"],
+    ingredients: ["shrimp","coconut milk","garlic","ginger","curry powder","lime juice","onion","vegetable oil","cilantro","rice"],
+    steps: ["Heat oil, cook diced onion 3 minutes.","Add garlic and ginger, cook 30 seconds.","Add curry powder, stir 30 seconds.","Pour in coconut milk, bring to a simmer.","Add shrimp, cook 3-4 minutes until pink.","Add lime juice and season to taste.","Garnish with cilantro, serve over rice."]
+  },
+  {
+    name: "Cottage Cheese Bowl", emoji: "🥛",
+    time: 3, difficulty: "Easy", meal: "snack",
+    diet: ["vegetarian","gluten-free","low-carb"],
+    ingredients: ["cottage cheese","berries","honey","almonds"],
+    steps: ["Scoop cottage cheese into a bowl.","Top with fresh berries.","Drizzle with honey.","Scatter sliced almonds on top.","Eat immediately."]
+  },
+  {
+    name: "Lamb Kebabs", emoji: "🍢",
+    time: 30, difficulty: "Medium", meal: "dinner",
+    diet: ["gluten-free","dairy-free"],
+    ingredients: ["lamb","onion","garlic","cumin","paprika","olive oil","bell pepper","salt","pepper"],
+    steps: ["Cut lamb into 1-inch cubes.","Marinate with diced onion, minced garlic, cumin, paprika, olive oil, salt and pepper for 15 minutes.","Thread lamb onto skewers, alternating with bell pepper chunks.","Grill or broil on high heat, turning every 3 minutes, for about 12 minutes total.","Rest 3 minutes before serving.","Serve with rice or pita bread."]
+  },
+  {
+    name: "French Toast", emoji: "🍞",
+    time: 12, difficulty: "Easy", meal: "breakfast",
+    diet: ["vegetarian"],
+    ingredients: ["bread","eggs","milk","cinnamon","vanilla extract","butter","sugar"],
+    steps: ["Beat eggs with milk, cinnamon, vanilla, and a pinch of sugar.","Dip bread slices in the mixture, coating both sides well.","Melt butter in a pan over medium heat.","Cook bread 2-3 minutes per side until golden brown.","Serve with maple syrup and fresh fruit."]
+  },
+  {
+    name: "Corn Salsa", emoji: "🌽",
+    time: 10, difficulty: "Easy", meal: "snack",
+    diet: ["vegan","gluten-free","dairy-free"],
+    ingredients: ["corn","tomato","onion","cilantro","lime juice","jalapeño","salt"],
+    steps: ["Cut corn off the cob (or use canned corn, drained).","Dice tomato and onion finely.","Chop cilantro, mince jalapeño.","Combine all in a bowl.","Add lime juice and salt, toss well.","Let sit 5 minutes for flavors to meld.","Serve with tortilla chips."]
+  },
+  {
+    name: "Egg Salad", emoji: "🥚",
+    time: 15, difficulty: "Easy", meal: "lunch",
+    diet: ["vegetarian","gluten-free","low-carb"],
+    ingredients: ["eggs","mayonnaise","mustard","celery","onion","salt","pepper","lettuce"],
+    steps: ["Hard boil eggs: place in cold water, bring to boil, cover, remove from heat, let sit 12 minutes.","Peel and dice eggs.","Mix in mayonnaise and mustard.","Add finely diced celery and onion.","Season with salt and pepper.","Serve on bread or over lettuce."]
+  },
+  {
+    name: "Chocolate Chip Cookies", emoji: "🍪",
+    time: 25, difficulty: "Easy", meal: "dessert",
+    diet: ["vegetarian"],
+    ingredients: ["butter","sugar","brown sugar","eggs","flour","vanilla extract","baking soda","salt","chocolate chips"],
+    steps: ["Preheat oven to 375°F.","Cream butter and both sugars until fluffy.","Beat in eggs and vanilla.","Mix flour, baking soda, and salt, then add to wet ingredients.","Fold in chocolate chips.","Scoop dough onto a baking sheet, 2 inches apart.","Bake 10-12 minutes until golden but still soft in center.","Cool on pan 5 minutes, then on a rack."]
+  },
+  {
+    name: "Mango Lassi", emoji: "🥭",
+    time: 5, difficulty: "Easy", meal: "snack",
+    diet: ["vegetarian","gluten-free"],
+    ingredients: ["mango","yogurt","milk","sugar","cardamom"],
+    steps: ["Peel and dice ripe mango (or use canned mango pulp).","Add mango, yogurt, milk, sugar, and a pinch of cardamom to a blender.","Blend until smooth and frothy.","Pour into a glass, sprinkle cardamom on top.","Serve chilled."]
+  },
+  {
+    name: "Chicken Quesadilla", emoji: "🧀",
+    time: 15, difficulty: "Easy", meal: "lunch",
+    diet: [],
+    ingredients: ["chicken breast","tortilla","cheese","bell pepper","onion","olive oil","cumin","salt","pepper"],
+    steps: ["Cook seasoned chicken breast, shred or dice.","Sauté diced pepper and onion until soft.","Place tortilla in a hot, lightly oiled pan.","Sprinkle cheese over half the tortilla.","Add chicken and vegetables on top of cheese.","Fold tortilla in half, cook 2-3 minutes per side until golden and cheese is melted.","Cut into wedges and serve with salsa."]
+  },
+  {
+    name: "Shakshuka", emoji: "🍳",
+    time: 25, difficulty: "Medium", meal: "breakfast",
+    diet: ["vegetarian","gluten-free","low-carb"],
+    ingredients: ["eggs","tomato","onion","garlic","bell pepper","cumin","paprika","olive oil","cilantro","salt","pepper","feta"],
+    steps: ["Heat olive oil, cook diced onion and bell pepper 5 minutes.","Add garlic, cumin, paprika, cook 1 minute.","Pour in crushed tomatoes, simmer 10 minutes.","Make small wells in the sauce and crack eggs into them.","Cover and cook 5-7 minutes until eggs are set to your liking.","Crumble feta on top, garnish with cilantro.","Serve straight from the pan with bread for dipping."]
+  },
+  {
+    name: "Asian Slaw", emoji: "🥗",
+    time: 10, difficulty: "Easy", meal: "snack",
+    diet: ["vegan","dairy-free"],
+    ingredients: ["cabbage","carrot","sesame oil","soy sauce","ginger","garlic","rice vinegar","peanuts"],
+    steps: ["Shred cabbage and grate carrot.","Whisk sesame oil, soy sauce, rice vinegar, grated ginger, and minced garlic for dressing.","Pour dressing over slaw and toss well.","Let sit 5 minutes for flavors to develop.","Top with crushed peanuts before serving."]
+  },
+  {
+    name: "Lemon Herb Chicken", emoji: "🍗",
+    time: 30, difficulty: "Easy", meal: "dinner",
+    diet: ["gluten-free","dairy-free","low-carb"],
+    ingredients: ["chicken breast","lemon juice","garlic","rosemary","thyme","olive oil","salt","pepper"],
+    steps: ["Mix olive oil, lemon juice, minced garlic, rosemary, thyme, salt, and pepper.","Marinate chicken for at least 15 minutes (longer is better).","Preheat oven to 400°F.","Place chicken in a baking dish, pour remaining marinade over.","Bake 25 minutes until internal temp reaches 165°F.","Rest 5 minutes before slicing."]
+  },
+  {
+    name: "Berry Smoothie Bowl", emoji: "🫐",
+    time: 5, difficulty: "Easy", meal: "breakfast",
+    diet: ["vegetarian","gluten-free","dairy-free"],
+    ingredients: ["berries","banana","oats","almond milk","honey","granola"],
+    steps: ["Blend frozen berries, banana, oats, and almond milk until thick.","Pour into a bowl (it should be thicker than a regular smoothie).","Top with granola, sliced fruit, and a drizzle of honey.","Eat with a spoon immediately."]
+  },
+  {
+    name: "Pasta Aglio e Olio", emoji: "🍝",
+    time: 15, difficulty: "Easy", meal: "dinner",
+    diet: ["vegan","dairy-free"],
+    ingredients: ["pasta","garlic","olive oil","chili powder","parsley","salt"],
+    steps: ["Cook pasta until al dente. Reserve 1 cup pasta water.","Thinly slice 6-8 cloves of garlic.","Heat generous olive oil in a pan over medium-low heat.","Add garlic, cook slowly until golden (not brown).","Add chili powder, cook 30 seconds.","Toss in pasta with a splash of pasta water.","Add chopped parsley, toss vigorously to emulsify."]
+  },
+  {
+    name: "Chicken Noodle Soup", emoji: "🍜",
+    time: 40, difficulty: "Easy", meal: "dinner",
+    diet: [],
+    ingredients: ["chicken breast","noodles","carrot","celery","onion","garlic","chicken broth","thyme","bay leaf","salt","pepper"],
+    steps: ["Heat oil in a large pot, cook diced onion, carrot, and celery 5 minutes.","Add garlic, cook 1 minute.","Add chicken broth and bring to a boil.","Add chicken breast, thyme, and bay leaf.","Simmer 15 minutes until chicken is cooked through.","Remove chicken, shred with forks.","Add noodles to the broth, cook until tender.","Return chicken to the pot, season and serve hot."]
+  },
+  {
+    name: "Guacamole", emoji: "🥑",
+    time: 5, difficulty: "Easy", meal: "snack",
+    diet: ["vegan","gluten-free","dairy-free","low-carb"],
+    ingredients: ["avocado","lime juice","onion","cilantro","jalapeño","salt","tomato"],
+    steps: ["Halve avocados, remove pit, scoop into a bowl.","Mash to desired texture with a fork.","Dice onion, tomato, and jalapeño finely.","Chop cilantro.","Fold everything together with lime juice and salt.","Taste and adjust seasoning.","Serve immediately with chips."]
+  },
+  {
+    name: "Crispy Tofu", emoji: "🧊",
+    time: 25, difficulty: "Medium", meal: "dinner",
+    diet: ["vegan","dairy-free"],
+    ingredients: ["tofu","soy sauce","cornstarch","garlic","ginger","sesame oil","vegetable oil","green beans"],
+    steps: ["Press tofu 15 minutes to remove water, then cube.","Toss tofu cubes in cornstarch until coated.","Heat vegetable oil in a pan over medium-high heat.","Fry tofu until golden and crispy on all sides, about 8 minutes.","Remove tofu, sauté green beans in the same pan.","Make sauce: mix soy sauce, minced garlic, ginger, and sesame oil.","Return tofu to pan, pour sauce over, toss to coat."]
+  }
+];
+
+// ============ APP STATE ============
+let selectedIngredients = [];
+let activeDietary = new Set();
+let showOnlyAvailable = false;
+
+// ============ INGREDIENT DATA ============
+const allIngredients = [];
+for (const [cat, items] of Object.entries(INGREDIENT_CATEGORIES)) {
+  for (const item of items) {
+    if (!allIngredients.find(i => i.name === item)) {
+      allIngredients.push({ name: item, category: cat });
+    }
+  }
+}
+
+// ============ AUTOCOMPLETE ============
+const input = document.getElementById('ingredientInput');
+const list = document.getElementById('autocompleteList');
+let activeIndex = -1;
+
+input.addEventListener('input', () => {
+  const val = input.value.toLowerCase().trim();
+  if (!val) { list.classList.remove('show'); return; }
+  const matches = allIngredients
+    .filter(i => i.name.includes(val) && !selectedIngredients.includes(i.name))
+    .slice(0, 8);
+  if (!matches.length) { list.classList.remove('show'); return; }
+  list.innerHTML = matches.map((m, idx) =>
+    `<div class="autocomplete-item" data-idx="${idx}" data-name="${m.name}">
+      <span>${m.name}</span><span class="cat-label">${m.category}</span>
+    </div>`
+  ).join('');
+  list.classList.add('show');
+  activeIndex = -1;
+  list.querySelectorAll('.autocomplete-item').forEach(item => {
+    item.addEventListener('click', () => {
+      addIngredientByName(item.dataset.name);
+      input.value = '';
+      list.classList.remove('show');
+    });
+  });
+});
+
+input.addEventListener('keydown', (e) => {
+  const items = list.querySelectorAll('.autocomplete-item');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    activeIndex = Math.min(activeIndex + 1, items.length - 1);
+    items.forEach((it, i) => it.classList.toggle('active', i === activeIndex));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    activeIndex = Math.max(activeIndex - 1, 0);
+    items.forEach((it, i) => it.classList.toggle('active', i === activeIndex));
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (activeIndex >= 0 && items[activeIndex]) {
+      addIngredientByName(items[activeIndex].dataset.name);
+      input.value = '';
+      list.classList.remove('show');
+    } else if (input.value.trim()) {
+      addIngredient();
+    }
+  } else if (e.key === 'Escape') {
+    list.classList.remove('show');
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.autocomplete-wrapper')) list.classList.remove('show');
+});
+
+// ============ INGREDIENT MANAGEMENT ============
+function addIngredient() {
+  const val = input.value.trim().toLowerCase();
+  if (!val) return;
+  addIngredientByName(val);
+  input.value = '';
+}
+
+function addIngredientByName(name) {
+  if (selectedIngredients.includes(name)) return;
+  selectedIngredients.push(name);
+  renderSelectedTags();
+  renderCategoryBrowser();
+  renderRecipes();
+}
+
+function removeIngredient(name) {
+  selectedIngredients = selectedIngredients.filter(i => i !== name);
+  renderSelectedTags();
+  renderCategoryBrowser();
+  renderRecipes();
+}
+
+function clearAll() {
+  selectedIngredients = [];
+  showOnlyAvailable = false;
+  renderSelectedTags();
+  renderCategoryBrowser();
+  renderRecipes();
+}
+
+function showWhatICanMake() {
+  showOnlyAvailable = !showOnlyAvailable;
+  const btn = document.querySelector('.btn-ghost');
+  if (showOnlyAvailable) {
+    btn.style.background = 'var(--accent)';
+    btn.style.color = 'white';
+    btn.textContent = '⚡ Showing: What I Can Make';
+  } else {
+    btn.style.background = '';
+    btn.style.color = '';
+    btn.textContent = '⚡ What Can I Make Now?';
+  }
+  renderRecipes();
+}
+
+// ============ DIETARY FILTERS ============
+function toggleDiet(btn) {
+  const diet = btn.dataset.diet;
+  if (activeDietary.has(diet)) {
+    activeDietary.delete(diet);
+    btn.classList.remove('active');
+  } else {
+    activeDietary.add(diet);
+    btn.classList.add('active');
+  }
+  renderRecipes();
+}
+
+// ============ RENDER ============
+function renderSelectedTags() {
+  const container = document.getElementById('selectedTags');
+  container.innerHTML = selectedIngredients.map(i =>
+    `<span class="tag">${i}<button onclick="removeIngredient('${i}')">&times;</button></span>`
+  ).join('');
+}
+
+function renderCategoryBrowser() {
+  const container = document.getElementById('categoryBrowser');
+  let html = '';
+  for (const [cat, items] of Object.entries(INGREDIENT_CATEGORIES)) {
+    const unique = [...new Set(items)];
+    html += `<details open><summary style="margin-top:0.6rem">${cat}</summary><div class="category-grid">`;
+    for (const item of unique) {
+      const sel = selectedIngredients.includes(item);
+      html += `<button class="quick-btn ${sel ? 'selected' : ''}" onclick="${sel ? `removeIngredient('${item}')` : `addIngredientByName('${item}')`}">${sel ? '✓ ' : ''}${item}</button>`;
+    }
+    html += `</div></details>`;
+  }
+  container.innerHTML = html;
+}
+
+function getRecipeMatch(recipe) {
+  if (selectedIngredients.length === 0) return { count: 0, total: recipe.ingredients.length, pct: 0, missing: recipe.ingredients };
+  const matched = recipe.ingredients.filter(i => selectedIngredients.includes(i));
+  const missing = recipe.ingredients.filter(i => !selectedIngredients.includes(i));
+  return { count: matched.length, total: recipe.ingredients.length, pct: Math.round((matched.length / recipe.ingredients.length) * 100), missing, matched };
+}
+
+function getMatchColor(pct) {
+  if (pct >= 80) return 'var(--match-high)';
+  if (pct >= 50) return 'var(--match-mid)';
+  return 'var(--match-low)';
+}
+
+function getDiffOrder(d) { return d === 'Easy' ? 1 : d === 'Medium' ? 2 : 3; }
+
+function renderRecipes() {
+  const grid = document.getElementById('recipeGrid');
+  const sortBy = document.getElementById('sortBy').value;
+  const mealFilter = document.getElementById('mealFilter').value;
+  const diffFilter = document.getElementById('diffFilter').value;
+
+  let recipes = RECIPES.map(r => ({ ...r, match: getRecipeMatch(r) }));
+
+  // Filter by meal
+  if (mealFilter !== 'all') recipes = recipes.filter(r => r.meal === mealFilter);
+  // Filter by difficulty
+  if (diffFilter !== 'all') recipes = recipes.filter(r => r.difficulty === diffFilter);
+  // Filter by dietary
+  if (activeDietary.size > 0) {
+    recipes = recipes.filter(r => {
+      for (const d of activeDietary) {
+        if (!r.diet.includes(d)) return false;
+      }
+      return true;
+    });
+  }
+  // Filter: show only available
+  if (showOnlyAvailable) {
+    recipes = recipes.filter(r => r.match.pct >= 80);
+  }
+
+  // Sort
+  if (sortBy === 'match') {
+    recipes.sort((a, b) => b.match.pct - a.match.pct || a.time - b.time);
+  } else if (sortBy === 'time') {
+    recipes.sort((a, b) => a.time - b.time);
+  } else if (sortBy === 'name') {
+    recipes.sort((a, b) => a.name.localeCompare(b.name));
+  } else if (sortBy === 'difficulty') {
+    recipes.sort((a, b) => getDiffOrder(a.difficulty) - getDiffOrder(b.difficulty) || b.match.pct - a.match.pct);
+  }
+
+  // Match count
+  const matchCountEl = document.getElementById('matchCount');
+  const fullMatch = recipes.filter(r => r.match.pct === 100).length;
+  const partialMatch = recipes.filter(r => r.match.pct >= 50 && r.match.pct < 100).length;
+  if (selectedIngredients.length > 0) {
+    matchCountEl.textContent = `${fullMatch} exact matches · ${partialMatch} partial · ${recipes.length} total shown`;
+  } else {
+    matchCountEl.textContent = `${recipes.length} recipes`;
+  }
+
+  // Title
+  const title = document.getElementById('recipesTitle');
+  if (showOnlyAvailable) title.textContent = 'What You Can Make';
+  else if (selectedIngredients.length > 0) title.textContent = 'Matching Recipes';
+  else title.textContent = 'All Recipes';
+
+  if (!recipes.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><span class="emoji">🔍</span><h3>No recipes match your filters</h3><p>Try removing some filters or adding more ingredients</p></div>`;
+    return;
+  }
+
+  grid.innerHTML = recipes.map((r, idx) => {
+    const highlight = r.match.pct >= 80 && selectedIngredients.length > 0;
+    const noMatch = r.match.pct === 0 && selectedIngredients.length > 0;
+    const dietTags = r.diet.map(d => `<span class="card-diet-tag tag-${d}">${d}</span>`).join('');
+
+    const ingredientListHTML = r.ingredients.map(ing => {
+      const has = selectedIngredients.includes(ing);
+      return `<li class="${has ? 'has-ingredient' : 'missing'}"><span class="check">${has ? '✅' : '❌'}</span>${ing}</li>`;
+    }).join('');
+
+    const stepsHTML = r.steps.map(s => `<li>${s}</li>`).join('');
+
+    return `<div class="recipe-card ${highlight ? 'highlight' : ''} ${noMatch && selectedIngredients.length > 0 ? 'no-match' : ''}" onclick="toggleDetail(${idx})">
+      <span class="card-badge">Can Make!</span>
+      <div class="card-top">
+        <span class="card-emoji">${r.emoji}</span>
+        <div class="card-title">${r.name}</div>
+        <div class="card-meta">
+          <span class="meta-chip"><span class="icon">⏱️</span>${r.time} min</span>
+          <span class="meta-chip"><span class="icon">📊</span>${r.difficulty}</span>
+          <span class="meta-chip"><span class="icon">${r.meal === 'breakfast' ? '🌅' : r.meal === 'lunch' ? '☀️' : r.meal === 'dinner' ? '🌙' : r.meal === 'snack' ? '🍿' : '🍰'}</span>${r.meal}</span>
+        </div>
+      </div>
+      ${dietTags ? `<div class="card-tags">${dietTags}</div>` : ''}
+      <div class="card-match">
+        <div class="match-bar-outer"><div class="match-bar-inner" style="width:${r.match.pct}%;background:${getMatchColor(r.match.pct)}"></div></div>
+        <div class="match-label"><strong>${r.match.count}/${r.match.total}</strong> ingredients you have (${r.match.pct}%)</div>
+      </div>
+      <div class="card-expand-hint">Click for full recipe ▾</div>
+      <div class="recipe-detail" id="detail-${idx}">
+        <div class="detail-section">
+          <h3>Ingredients</h3>
+          <ul class="ingredient-list">${ingredientListHTML}</ul>
+        </div>
+        <div class="detail-section">
+          <h3>Instructions</h3>
+          <ol class="steps-list">${stepsHTML}</ol>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleDetail(idx) {
+  const detail = document.getElementById(`detail-${idx}`);
+  detail.classList.toggle('open');
+  const hint = detail.previousElementSibling;
+  if (detail.classList.contains('open')) {
+    hint.textContent = 'Click to collapse ▴';
+  } else {
+    hint.textContent = 'Click for full recipe ▾';
+  }
+}
+
+// ============ INIT ============
+renderCategoryBrowser();
+renderRecipes();
+</script>
+</body>
+</html>

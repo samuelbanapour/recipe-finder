@@ -1,0 +1,8 @@
+{
+  "appId": "com.soloappsstudio.recipefinder",
+  "appName": "Recipe Finder",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}
